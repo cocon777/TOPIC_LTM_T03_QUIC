@@ -1,3 +1,4 @@
+// mở một connection, gửi 4 message song song, mỗi message một stream.
 package main
 
 import (
@@ -15,6 +16,7 @@ import (
 const addr = "localhost:4242"
 
 func main() {
+	// Cấu hình TLS phía client
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true, // demo local: cert self-signed
 		NextProtos:         []string{"quic-demo"},
@@ -23,7 +25,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Chỉ 1 lần Dial = 1 handshake = 1 QUIC connection
+	// 1 handshake = 1 QUIC connection
 	conn, err := quic.DialAddr(ctx, addr, tlsConf, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -32,6 +34,8 @@ func main() {
 	fmt.Printf("1 connection: %v -> %v\n", conn.LocalAddr(), conn.RemoteAddr())
 
 	messages := []string{"Message A", "Message B", "Message C", "Message D"}
+
+	// mỗi message chạy trong goroutine riêng, WaitGroup chờ tất cả xong
 	var wg sync.WaitGroup
 	for _, msg := range messages {
 		wg.Add(1)
@@ -44,7 +48,9 @@ func main() {
 				return
 			}
 			stream.Write([]byte(msg))
-			stream.Close() // đóng chiều gửi để server đọc được EOF
+			stream.Close() // đóng chiều gửi để server đọc được
+
+			// đọc phản hồi của riêng stream này
 			buf, err := io.ReadAll(stream)
 			if err != nil {
 				log.Println("read:", err)

@@ -1,3 +1,4 @@
+// server echo cho TCP+TLS (cổng 5003)
 package main
 
 import (
@@ -24,6 +25,7 @@ func main() {
 		}
 		go func(c net.Conn) {
 			defer c.Close()
+			// một connection phục vụ NHIỀU request liên tiếp
 			for {
 				msg, err := bench.ReadMessage(c)
 				if err != nil {

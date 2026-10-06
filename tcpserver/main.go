@@ -1,3 +1,4 @@
+// lắng nghe TCP và chấp nhận connection
 package main
 
 import (
@@ -23,12 +24,15 @@ func main() {
 			continue
 		}
 		log.Println("new connection from", conn.RemoteAddr())
-		go handle(conn)
+		go handle(conn)  // mỗi connection một goroutine
 	}
 }
 
+// đọc 1 dòng rồi trả về
 func handle(conn net.Conn) {
 	defer conn.Close()
+	// TCP là luồng byte, dùng '\n' làm dấu kết thúc message
+	// TCP không có ranh giới nên phải dùng \n. QUIC có ranh giới theo stream
 	msg, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
 		log.Println("read error:", err)

@@ -18,7 +18,7 @@ func main() {
 		wg.Add(1)
 		go func(msg string) {
 			defer wg.Done()
-			// TCP không có stream: mỗi message phải mở 1 connection riêng
+			// MỖI message một net.Dial = một connection = một handshake
 			conn, err := net.Dial("tcp", addr)
 			if err != nil {
 				log.Println("dial:", err)

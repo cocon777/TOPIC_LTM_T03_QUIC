@@ -1,3 +1,5 @@
+// công cụ đo, nhận tham số -proto -mode -n -warmup -size
+
 package main
 
 import (
@@ -23,6 +25,7 @@ const (
 	tlsAddr  = "127.0.0.1:5003"
 )
 
+// clientTLS: cấu hình dùng chung cho QUIC và TCP+TLS
 func clientTLS() *tls.Config {
 	return &tls.Config{
 		InsecureSkipVerify: true, // demo local
@@ -31,12 +34,14 @@ func clientTLS() *tls.Config {
 	}
 }
 
+// thiết lập một connection QUIC, giới hạn 5 giây
 func dialQUIC() (*quic.Conn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return quic.DialAddr(ctx, quicAddr, clientTLS(), nil)
 }
 
+// dialTCP: thiết lập TCP hoặc TCP+TLS tùy proto
 func dialTCP(proto string) (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -48,7 +53,7 @@ func dialTCP(proto string) (net.Conn, error) {
 	return d.DialContext(ctx, "tcp", tcpAddr)
 }
 
-// tryHandshake: một lần thiết lập kết nối rồi đóng, hạn 5 giây
+// tryHandshake: một lần thiết lập kết nối rồi đóng - được đo ra kết quả, hạn 5 giây 
 func tryHandshake(proto string) error {
 	if proto == "quic" {
 		conn, err := dialQUIC()
@@ -112,7 +117,7 @@ func main() {
 			err := tryHandshake(*proto)
 			d := time.Since(t0)
 			if err != nil {
-				fails++
+				fails++       // thất bại: đếm riêng, không đưa vào kết quả avg
 				log.Printf("lần %d thất bại sau %v: %v", i+1, d, err)
 				continue
 			}
@@ -176,12 +181,13 @@ func main() {
 		log.Fatal("không có lần đo nào thành công")
 	}
 
-	avg := wall / time.Duration(len(durations))
+	// tính và in kết quả
+	avg := wall / time.Duration(len(durations))			// trung bình
 	sorted := append([]time.Duration(nil), durations...)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })		// sắp xếp để lấy min/median/max
 	fmt.Printf("avg=%v | từng lần: min=%v median=%v max=%v\n", avg, sorted[0], sorted[len(sorted)/2], sorted[len(sorted)-1])
 	if *mode == "transfer" {
-		mib := float64(2**size) / avg.Seconds() / 1024 / 1024
+		mib := float64(2**size) / avg.Seconds() / 1024 / 1024		// 2 : hai chiều
 		fmt.Printf("throughput (2 chiều, theo avg) = %.2f MiB/s\n", mib)
 	}
 }
